@@ -29,7 +29,7 @@ Squircle is a Fusion sketch tool for drawing round profiles that can be printed 
 
 **Create › Circle › Squircle:** draws into the sketch you are editing.
 
-<img src="docs/menu.png" alt="Squircle in the Circle menu" width="436">
+<img src="docs/menu.png" alt="Squircle in the Circle menu" width="427">
 
 
 ### Solid Mode
