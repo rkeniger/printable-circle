@@ -1,4 +1,4 @@
-"""Pure-maths geometry for the squircle profile (no Fusion imports).
+"""Pure-maths geometry for the capdrop profile (no Fusion imports).
 
 The profile is a circle of diameter D whose top is replaced by a flat line of
 half-width k*D, tangent to the circle at its top point, joined back to the
@@ -17,7 +17,7 @@ DEFAULT_RATIO = 0.207  # about 45° side walls; exactly 45° is (sqrt(2) - 1) / 
 
 
 @dataclass(frozen=True)
-class SquircleGeometry:
+class CapdropGeometry:
     center: tuple
     top_mid: tuple
     top_left: tuple
@@ -31,7 +31,7 @@ class SquircleGeometry:
 
 
 def tangent_point_local(radius, half_width):
-    """Right-hand tangent point (x, y) in the squircle's local frame.
+    """Right-hand tangent point (x, y) in the capdrop's local frame.
 
     Local frame: circle centred at the origin, flat at y = radius.
     """
@@ -66,7 +66,7 @@ def compute(center, diameter, ratio, theta_rad=0.0):
         return (cx + x * c - y * s, cy + x * s + y * c)
 
     tx, ty = tangent_point_local(r, w)
-    return SquircleGeometry(
+    return CapdropGeometry(
         center=(cx, cy),
         top_mid=to_sketch(0.0, r),
         top_left=to_sketch(-w, r),

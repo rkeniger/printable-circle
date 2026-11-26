@@ -3,9 +3,9 @@ import os
 import sys
 import unittest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "Squircle"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "Capdrop"))
 
-import squircle_geometry as g  # noqa: E402
+import capdrop_geometry as g  # noqa: E402
 
 
 def close(a, b, tol=1e-9):

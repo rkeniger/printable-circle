@@ -1,11 +1,11 @@
-"""Writes a fully constrained squircle into a Fusion sketch."""
+"""Writes a fully constrained capdrop into a Fusion sketch."""
 
 import math
 
 import adsk.core
 import adsk.fusion
 
-from . import squircle_geometry as sg
+from . import capdrop_geometry as sg
 
 
 def _p(xy):
@@ -23,11 +23,11 @@ def _normalise_angle(theta):
 
 
 def build(sketch, center_point, diameter, ratio, theta=0.0, link_to=None):
-    """Draw a squircle centred on center_point (a SketchPoint in this sketch).
+    """Draw a capdrop centred on center_point (a SketchPoint in this sketch).
 
     diameter is in Fusion internal units (cm), theta in radians, measured
     counterclockwise from sketch +Y to the direction the flat faces.
-    Pass an earlier result as link_to to make this squircle follow that one:
+    Pass an earlier result as link_to to make this capdrop follow that one:
     its diameter and half-width dimensions reference the first one's, and its
     axis is kept parallel to the first one's axis.
     Returns a dict of the created entities.

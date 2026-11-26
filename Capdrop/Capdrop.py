@@ -1,4 +1,4 @@
-"""Squircle: a sketch tool that draws a circle with a flat top, so the profile
+"""Capdrop: a sketch tool that draws a circle with a flat top, so the profile
 can be 3D printed upright on an FDM printer without supports."""
 
 import json
@@ -9,11 +9,11 @@ import traceback
 import adsk.core
 import adsk.fusion
 
-from . import squircle_geometry as sg
-from . import squircle_sketch as ss
+from . import capdrop_geometry as sg
+from . import capdrop_sketch as ss
 
-CMD_ID = "SquircleSketchCommand"
-CMD_NAME = "Squircle"
+CMD_ID = "CapdropSketchCommand"
+CMD_NAME = "Capdrop"
 CMD_TOOLTIP = (
     "Circle with a flat top and tangent side walls, so it prints upright "
     "without supports."
@@ -35,7 +35,7 @@ _ui = None
 _handlers = []
 _manip_event = None
 _manip_handler = None
-MANIP_EVENT_ID = "SquircleManipulatorUpdate"
+MANIP_EVENT_ID = "CapdropManipulatorUpdate"
 _state = {}
 
 
@@ -183,7 +183,7 @@ def _build(inputs, preview=False):
     centers = _center_points(sketch, inputs)
     if not centers:
         return False
-    # The first squircle carries the driving dimensions; the rest follow it.
+    # The first capdrop carries the driving dimensions; the rest follow it.
     first = None
     for center in centers:
         result = ss.build(
@@ -256,7 +256,7 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 event.add(handler)
                 _handlers.append(handler)
         except Exception:
-            _ui.messageBox("Squircle failed to start:\n" + traceback.format_exc())
+            _ui.messageBox("Capdrop failed to start:\n" + traceback.format_exc())
 
 
 class ManipulatorEventHandler(adsk.core.CustomEventHandler):
@@ -269,7 +269,7 @@ class ManipulatorEventHandler(adsk.core.CustomEventHandler):
             if frame != _state.get("applied_frame"):
                 _apply_frame(inputs, frame)
         except Exception:
-            _app.log("Squircle manipulator update failed:\n" + traceback.format_exc())
+            _app.log("Capdrop manipulator update failed:\n" + traceback.format_exc())
 
 
 class ExecutePreviewHandler(adsk.core.CommandEventHandler):
@@ -280,7 +280,7 @@ class ExecutePreviewHandler(adsk.core.CommandEventHandler):
             event_args.isValidResult = _build(event_args.command.commandInputs, preview=True)
         except Exception:
             event_args.isValidResult = False
-            _app.log("Squircle preview failed:\n" + traceback.format_exc())
+            _app.log("Capdrop preview failed:\n" + traceback.format_exc())
 
 
 class ExecuteHandler(adsk.core.CommandEventHandler):
@@ -392,7 +392,7 @@ def run(context):
             controls.addCommand(cmd_def, after_id, False)
     except Exception:
         if _ui:
-            _ui.messageBox("Squircle add-in failed to load:\n" + traceback.format_exc())
+            _ui.messageBox("Capdrop add-in failed to load:\n" + traceback.format_exc())
 
 
 def stop(context):
@@ -402,4 +402,4 @@ def stop(context):
         _app.unregisterCustomEvent(MANIP_EVENT_ID)
     except Exception:
         if _ui:
-            _ui.messageBox("Squircle add-in failed to unload:\n" + traceback.format_exc())
+            _ui.messageBox("Capdrop add-in failed to unload:\n" + traceback.format_exc())
