@@ -34,7 +34,7 @@ Squircle is a Fusion sketch tool for drawing round profiles that can be printed 
 
 ### Solid Mode
 
-**Create › Squircle:** asks for a plane or face first, then creates a new sketch on it. By default the origin is the centre point of the face (if it has one), or the origin. You can specify any point on the face to use as the centre.
+**Create › Squircle:** asks for a plane or face first, then creates a new sketch on it. Then select one or more points to use as centres, such as a vertex on the face, a sketch point or a construction point.
 
 <img src="docs/solid.gif" alt="Animation of Squircle in Solid Mode" width="396">
 
@@ -44,7 +44,7 @@ Squircle is a Fusion sketch tool for drawing round profiles that can be printed 
 
 | Input | What it does |
 |---|---|
-| Centres | The point each squircle is centred on. Select several points to draw one squircle at each. Leave it empty to use the sketch origin. |
+| Centres | The point each squircle is centred on. Select several points to draw one squircle at each. Nothing is drawn until you select at least one. |
 | Diameter | The circle's diameter. Type a value or drag the arrow. |
 | Half-width ratio | Half the flat's width as a fraction of the diameter, from 0.05 to 0.45. A smaller value makes the side walls steeper and the top bridge shorter. |
 | Rotation | Turns the flat away from sketch +Y.|

@@ -105,12 +105,10 @@ def _sketch_point(sketch, entity):
 
 
 def _center_points(sketch, inputs):
-    """The selected centre points, in selection order. Defaults to the origin."""
+    """The selected centre points, in selection order."""
     center_input = inputs.itemById("center")
     # Collect the entities first: projecting into the sketch can disturb the selection.
     entities = [center_input.selection(i).entity for i in range(center_input.selectionCount)]
-    if not entities:
-        return [sketch.originPoint]
     points = []
     for entity in entities:
         point = _sketch_point(sketch, entity)
@@ -134,6 +132,13 @@ def _frame(sketch, center):
     )
 
 
+def _set_manipulators_enabled(inputs, enabled):
+    for input_id in ("diameter", "angle"):
+        item = inputs.itemById(input_id)
+        if item.isEnabled != enabled:
+            item.isEnabled = enabled
+
+
 def _apply_frame(inputs, frame):
     """Put the drag arrow and rotation dial at the centre, flat on the sketch plane."""
     o, x, y = frame
@@ -146,6 +151,7 @@ def _apply_frame(inputs, frame):
     dia.setManipulator(origin, x_dir)
     # Angle 0 points along sketch +Y; positive turns counterclockwise (toward -X).
     ang.setManipulator(origin, y_dir, minus_x)
+    _set_manipulators_enabled(inputs, True)
     _state["applied_frame"] = frame
 
 
@@ -175,6 +181,8 @@ def _build(inputs, preview=False):
     if sketch is None:
         return False
     centers = _center_points(sketch, inputs)
+    if not centers:
+        return False
     # The first squircle carries the driving dimensions; the rest follow it.
     first = None
     for center in centers:
@@ -207,12 +215,12 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 plane.setSelectionLimits(1, 1)
 
             center = inputs.addSelectionInput(
-                "center", "Centres", "Select one or more centre points (defaults to the sketch origin)"
+                "center", "Centres", "Select one or more centre points"
             )
             center.addSelectionFilter("SketchPoints")
             center.addSelectionFilter("ConstructionPoints")
             center.addSelectionFilter("Vertices")
-            center.setSelectionLimits(0, 0)  # any number
+            center.setSelectionLimits(1, 0)  # at least one, no upper limit
 
             dia = inputs.addDistanceValueCommandInput(
                 "diameter", "Diameter", adsk.core.ValueInput.createByReal(values["diameter"])
@@ -233,10 +241,10 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             info.tooltip = "Overhang is the side-wall angle from vertical. Bridge is the length of the flat top."
             _update_info(inputs)
 
-            # Without a sketch, the manipulators are placed once the preview runs.
+            # Nothing is drawn until a centre is picked. The drag arrow and dial
+            # stay hidden until then, which means disabling their inputs.
             _state["inputs"] = inputs
-            if _state["sketch"] is not None:
-                _apply_frame(inputs, _frame(_state["sketch"], _state["sketch"].originPoint))
+            _set_manipulators_enabled(inputs, False)
 
             for event, handler in (
                 (cmd.executePreview, ExecutePreviewHandler()),
@@ -256,7 +264,9 @@ class ManipulatorEventHandler(adsk.core.CustomEventHandler):
         try:
             inputs = _state.get("inputs")
             frame = _state.get("frame")
-            if inputs is not None and frame is not None and frame != _state.get("applied_frame"):
+            if inputs is None or frame is None or inputs.itemById("center").selectionCount == 0:
+                return
+            if frame != _state.get("applied_frame"):
                 _apply_frame(inputs, frame)
         except Exception:
             _app.log("Squircle manipulator update failed:\n" + traceback.format_exc())
@@ -293,6 +303,11 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
             changed = event_args.input.id
             if changed in ("diameter", "ratio"):
                 _update_info(inputs)
+            elif changed == "center":
+                if inputs.itemById("center").selectionCount == 0:
+                    _set_manipulators_enabled(inputs, False)
+                    _state.pop("applied_frame", None)
+                    _state.pop("frame", None)
             elif changed == "plane":
                 plane = inputs.itemById("plane")
                 if plane.selectionCount:
