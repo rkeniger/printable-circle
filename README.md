@@ -4,6 +4,7 @@
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
 ![Autodesk Fusion add-in](https://img.shields.io/badge/Autodesk%20Fusion-add--in-orange)
 ![Platform: macOS and Windows](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 Squircle is a Fusion sketch tool for drawing round profiles that can be printed upright on an FDM printer without supports. A normal circle has a steep overhang at its top, which needs supports to print. A squircle swaps that top for a flat line with two side walls that meet the circle at a tangent, so the overhang stays within what a printer can bridge easily.
 
@@ -60,3 +61,7 @@ Each squircle is fully constrained, so it can't be dragged out of shape by accid
 ## Development
 
 - **Tests:** `python3 -m unittest discover -s tests` checks the geometry maths without Fusion.
+
+## License
+
+Squircle is released under the [MIT License](LICENSE).

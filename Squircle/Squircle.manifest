@@ -2,7 +2,7 @@
 	"autodeskProduct": "Fusion360",
 	"type": "addin",
 	"id": "20b16ef0-7427-4ab7-8487-632164fb63c0",
-	"author": "",
+	"author": "Rob Keniger",
 	"description": {
 		"": "Sketch tool: a circle with a flat top and tangent walls, so it 3D prints upright without supports."
 	},
