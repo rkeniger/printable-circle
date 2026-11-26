@@ -11,7 +11,7 @@ Squircle is a Fusion sketch tool for drawing round profiles that can be printed 
 * The flat top sits on the circle's highest point. It is half the diameter wide by default.
 * The squircle has the same overhang angle at any size. At the default width it is 45° from vertical, which will print without supports with default slicer settings.
 
-![A 50 mm squircle in a sketch](docs/sketch.png)
+<img src="docs/sketch.png" alt="A 50 mm squircle in a sketch" width="454">
 
 
 ## Install
@@ -28,18 +28,18 @@ Squircle is a Fusion sketch tool for drawing round profiles that can be printed 
 
 **Create › Circle › Squircle:** draws into the sketch you are editing.
 
-![Squircle in the Circle menu](docs/menu.png)
+<img src="docs/menu.png" alt="Squircle in the Circle menu" width="436">
 
 
 ### Solid Mode
 
 **Create › Squircle:** asks for a plane or face first, then creates a new sketch on it. By default the origin is the centre point of the face (if it has one), or the origin. You can specify any point on the face to use as the centre.
 
-![Animation of Squircle in Solid Mode](docs/solid.gif)
+<img src="docs/solid.gif" alt="Animation of Squircle in Solid Mode" width="396">
 
 
 ### Controls
-![The Squircle dialog](docs/dialog.png)
+<img src="docs/dialog.png" alt="The Squircle dialog" width="253">
 
 | Input | What it does |
 |---|---|
