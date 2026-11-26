@@ -12,8 +12,10 @@ Squircle is a Fusion sketch tool for drawing round profiles that can be printed 
 * The flat top sits on the circle's highest point. It is half the diameter wide by default.
 * The squircle has the same overhang angle at any size. At the default width it is 45° from vertical, which will print without supports with default slicer settings.
 
-<img src="docs/sketch.png" alt="A 50 mm squircle in a sketch" width="454">
-<img src="docs/hole.jpeg" alt="A 3D printed squircle hole" height="492">
+<p>
+  <img src="docs/sketch.png" alt="A 50 mm squircle in a sketch" width="52%">
+  <img src="docs/hole.jpeg" alt="A 3D printed squircle hole" width="45%">
+</p>
 
 
 ## Install
