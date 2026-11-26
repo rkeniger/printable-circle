@@ -44,7 +44,7 @@ Squircle is a Fusion sketch tool for drawing round profiles that can be printed 
 
 | Input | What it does |
 |---|---|
-| Centre | The point the circle is centred on. Leave it empty to use the sketch origin. |
+| Centres | The point each squircle is centred on. Select several points to draw one squircle at each. Leave it empty to use the sketch origin. |
 | Diameter | The circle's diameter. Type a value or drag the arrow. |
 | Half-width ratio | Half the flat's width as a fraction of the diameter, from 0.05 to 0.45. A smaller value makes the side walls steeper and the top bridge shorter. |
 | Rotation | Turns the flat away from sketch +Y.|
@@ -55,6 +55,7 @@ Below the inputs, the dialog shows the side-wall angle from vertical (**Overhang
 
 Each squircle is fully constrained, so it can't be dragged out of shape by accident.
 
+- **Linked copies:** squircles drawn in one go are linked. The first point you selected carries the dimensions and the rest follow it, so one edit resizes or rotates them all.
 - **Resize:** edit the diameter dimension. The flat's half-width dimension is set to diameter × ratio, so the rest of the shape follows.
 - **Defaults:** the dialog opens with the last values you used, which are stored in `Squircle/settings.json`.
 

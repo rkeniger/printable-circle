@@ -22,11 +22,14 @@ def _normalise_angle(theta):
     return theta
 
 
-def build(sketch, center_point, diameter, ratio, theta=0.0):
+def build(sketch, center_point, diameter, ratio, theta=0.0, link_to=None):
     """Draw a squircle centred on center_point (a SketchPoint in this sketch).
 
     diameter is in Fusion internal units (cm), theta in radians, measured
     counterclockwise from sketch +Y to the direction the flat faces.
+    Pass an earlier result as link_to to make this squircle follow that one:
+    its diameter and half-width dimensions reference the first one's, and its
+    axis is kept parallel to the first one's axis.
     Returns a dict of the created entities.
     """
     theta = _normalise_angle(theta)
@@ -65,6 +68,8 @@ def build(sketch, center_point, diameter, ratio, theta=0.0):
         angle_dim = None
         if abs(math.sin(theta)) < 1e-9:
             gc.addVertical(axis)
+        elif link_to is not None:
+            gc.addParallel(axis, link_to["axis"])
         else:
             ref = lines.addByTwoPoints(center_point, _p((c.x, c.y + r)))
             ref.isConstruction = True
@@ -91,8 +96,12 @@ def build(sketch, center_point, diameter, ratio, theta=0.0):
     finally:
         sketch.isComputeDeferred = False
 
-    dia_dim.parameter.value = diameter
-    hw_dim.parameter.expression = f"{dia_dim.parameter.name} * {round(ratio, 6)}"
+    if link_to is not None:
+        dia_dim.parameter.expression = link_to["diameter_dim"].parameter.name
+        hw_dim.parameter.expression = link_to["half_width_dim"].parameter.name
+    else:
+        dia_dim.parameter.value = diameter
+        hw_dim.parameter.expression = f"{dia_dim.parameter.name} * {round(ratio, 6)}"
     if angle_dim is not None:
         angle_dim.parameter.expression = f"{round(abs(math.degrees(theta)), 6)} deg"
 

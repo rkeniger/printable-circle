@@ -92,11 +92,7 @@ def _target_sketch(inputs):
     return _design().activeComponent.sketches.add(plane_input.selection(0).entity)
 
 
-def _center_point(sketch, inputs):
-    center_input = inputs.itemById("center")
-    if center_input.selectionCount == 0:
-        return sketch.originPoint
-    entity = center_input.selection(0).entity
+def _sketch_point(sketch, entity):
     point = adsk.fusion.SketchPoint.cast(entity)
     if point is not None and point.parentSketch == sketch:
         return point
@@ -106,6 +102,22 @@ def _center_point(sketch, inputs):
         if p is not None:
             return p
     raise RuntimeError("Could not use the selected centre point.")
+
+
+def _center_points(sketch, inputs):
+    """The selected centre points, in selection order. Defaults to the origin."""
+    center_input = inputs.itemById("center")
+    # Collect the entities first: projecting into the sketch can disturb the selection.
+    entities = [center_input.selection(i).entity for i in range(center_input.selectionCount)]
+    if not entities:
+        return [sketch.originPoint]
+    points = []
+    for entity in entities:
+        point = _sketch_point(sketch, entity)
+        # Two selections can land on the same spot, e.g. a vertex and a point on it.
+        if not any(point.geometry.isEqualTo(other.geometry) for other in points):
+            points.append(point)
+    return points
 
 
 def _frame(sketch, center):
@@ -162,10 +174,16 @@ def _build(inputs, preview=False):
     sketch = _target_sketch(inputs)
     if sketch is None:
         return False
-    center = _center_point(sketch, inputs)
-    ss.build(sketch, center, values["diameter"], values["ratio"], values["angle"])
+    centers = _center_points(sketch, inputs)
+    # The first squircle carries the driving dimensions; the rest follow it.
+    first = None
+    for center in centers:
+        result = ss.build(
+            sketch, center, values["diameter"], values["ratio"], values["angle"], link_to=first
+        )
+        first = first or result
     if preview:
-        _request_manipulator_update(sketch, center)
+        _request_manipulator_update(sketch, centers[0])
     _state["values"] = values
     return True
 
@@ -189,12 +207,12 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 plane.setSelectionLimits(1, 1)
 
             center = inputs.addSelectionInput(
-                "center", "Centre", "Select a centre point (defaults to the sketch origin)"
+                "center", "Centres", "Select one or more centre points (defaults to the sketch origin)"
             )
             center.addSelectionFilter("SketchPoints")
             center.addSelectionFilter("ConstructionPoints")
             center.addSelectionFilter("Vertices")
-            center.setSelectionLimits(0, 1)
+            center.setSelectionLimits(0, 0)  # any number
 
             dia = inputs.addDistanceValueCommandInput(
                 "diameter", "Diameter", adsk.core.ValueInput.createByReal(values["diameter"])
