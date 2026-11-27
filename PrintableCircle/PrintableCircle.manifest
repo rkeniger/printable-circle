@@ -6,7 +6,7 @@
 	"description": {
 		"": "Sketch tool: a circle with a flat top and tangent walls, so it 3D prints upright without supports."
 	},
-	"version": "0.2.0",
+	"version": "0.3.0",
 	"runOnStartup": true,
 	"supportedOS": "windows|mac",
 	"editEnabled": true
