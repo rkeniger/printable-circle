@@ -1,5 +1,5 @@
-"""Capdrop: a sketch tool that draws a circle with a flat top, so the profile
-can be 3D printed upright on an FDM printer without supports."""
+"""Printable Circle: a sketch tool that draws a circle with a flat or pointed top, so the
+profile can be 3D printed upright on an FDM printer without supports."""
 
 import json
 import math
@@ -9,14 +9,14 @@ import traceback
 import adsk.core
 import adsk.fusion
 
-from . import capdrop_geometry as sg
-from . import capdrop_sketch as ss
+from . import printable_circle_geometry as sg
+from . import printable_circle_sketch as ss
 
-CMD_ID = "CapdropSketchCommand"
-CMD_NAME = "Capdrop"
+CMD_ID = "PrintableCircleSketchCommand"
+CMD_NAME = "Printable Circle"
 CMD_TOOLTIP = (
-    "Circle with a flat top and tangent side walls, so it prints upright "
-    "without supports."
+    "Circle with tangent side walls and a flat top (capped) or a point "
+    "(teardrop), so it prints upright without supports."
 )
 HERE = os.path.dirname(os.path.abspath(__file__))
 RESOURCES = os.path.join(HERE, "resources")
@@ -28,14 +28,25 @@ PLACEMENTS = [
     ("SolidCreatePanel", None, "SketchCreate"),
 ]
 
-DEFAULTS = {"diameter": 1.0, "ratio": sg.DEFAULT_RATIO, "angle": 0.0}  # cm, -, rad
+# Shape names as shown in the dialog, keyed by the name stored in settings.
+SHAPES = {"capped": "Capped", "teardrop": "Teardrop"}
+
+DEFAULTS = {
+    "shape": "capped",
+    "diameter": 1.0,  # cm
+    "ratio": sg.DEFAULT_RATIO,
+    "overhang": math.radians(sg.DEFAULT_OVERHANG_DEG),  # rad
+    "angle": 0.0,  # rad
+}
+OVERHANG_MIN = math.radians(sg.OVERHANG_MIN_DEG)
+OVERHANG_MAX = math.radians(sg.OVERHANG_MAX_DEG)
 
 _app = None
 _ui = None
 _handlers = []
 _manip_event = None
 _manip_handler = None
-MANIP_EVENT_ID = "CapdropManipulatorUpdate"
+MANIP_EVENT_ID = "PrintableCircleManipulatorUpdate"
 _state = {}
 
 
@@ -44,10 +55,19 @@ def _load_settings():
     values = dict(DEFAULTS)
     try:
         with open(SETTINGS_FILE) as f:
-            values.update({k: float(v) for k, v in json.load(f).items() if k in DEFAULTS})
-    except (OSError, ValueError, TypeError):
-        pass
+            for key, value in json.load(f).items():
+                if key == "shape":
+                    values[key] = str(value)
+                elif key in DEFAULTS:
+                    values[key] = float(value)
+    except (OSError, ValueError, TypeError, AttributeError):
+        values = dict(DEFAULTS)
+    if values["shape"] not in SHAPES:
+        values["shape"] = DEFAULTS["shape"]
     values["ratio"] = min(max(values["ratio"], sg.RATIO_MIN), sg.RATIO_MAX)
+    values["overhang"] = min(max(values["overhang"], OVERHANG_MIN), OVERHANG_MAX)
+    # Dragging the dial a full turn stores 360°, which draws the same as 0°.
+    values["angle"] = sg.wrap_turn(values["angle"])
     if values["diameter"] <= 0:
         values["diameter"] = DEFAULTS["diameter"]
     return values
@@ -73,10 +93,18 @@ def _active_sketch():
     return adsk.fusion.Sketch.cast(design.activeEditObject)
 
 
+def _shape(inputs):
+    item = adsk.core.DropDownCommandInput.cast(inputs.itemById("shape")).selectedItem
+    teardrop = item is not None and item.name == SHAPES["teardrop"]
+    return "teardrop" if teardrop else "capped"
+
+
 def _read_inputs(inputs):
     return {
+        "shape": _shape(inputs),
         "diameter": adsk.core.DistanceValueCommandInput.cast(inputs.itemById("diameter")).value,
         "ratio": adsk.core.FloatSpinnerCommandInput.cast(inputs.itemById("ratio")).value,
+        "overhang": adsk.core.ValueCommandInput.cast(inputs.itemById("overhang")).value,
         "angle": adsk.core.AngleValueCommandInput.cast(inputs.itemById("angle")).value,
     }
 
@@ -152,6 +180,9 @@ def _apply_frame(inputs, frame):
     # Angle 0 points along sketch +Y; positive turns counterclockwise (toward -X).
     ang.setManipulator(origin, y_dir, minus_x)
     _set_manipulators_enabled(inputs, True)
+    # Placing the dial makes Fusion show a rotation of 0° as 360°. Put it back.
+    if ang.value != 0 and sg.wrap_turn(ang.value) == 0:
+        ang.value = 0.0
     _state["applied_frame"] = frame
 
 
@@ -165,13 +196,41 @@ def _request_manipulator_update(sketch, center):
         _app.fireCustomEvent(MANIP_EVENT_ID)
 
 
+def _overhang_ok(inputs, values):
+    overhang_input = adsk.core.ValueCommandInput.cast(inputs.itemById("overhang"))
+    return (
+        overhang_input.isValidExpression
+        and OVERHANG_MIN - 1e-9 <= values["overhang"] <= OVERHANG_MAX + 1e-9
+    )
+
+
+def _show_shape_inputs(inputs):
+    """Show only the wall control that belongs to the chosen shape."""
+    teardrop = _shape(inputs) == "teardrop"
+    inputs.itemById("ratio").isVisible = not teardrop
+    inputs.itemById("overhang").isVisible = teardrop
+
+
 def _update_info(inputs):
     info = adsk.core.TextBoxCommandInput.cast(inputs.itemById("info"))
     values = _read_inputs(inputs)
     units = _design().unitsManager
+    # formattedText renders HTML; plain .text shows tags literally.
+    if values["shape"] == "teardrop":
+        if not _overhang_ok(inputs, values):
+            info.formattedText = (
+                f"Overhang must be {sg.OVERHANG_MIN_DEG:g}° to {sg.OVERHANG_MAX_DEG:g}°"
+            )
+            return
+        radius = values["diameter"] / 2
+        rise = sg.teardrop_apex_height(radius, values["overhang"]) - radius
+        info.formattedText = (
+            f"Overhang: {math.degrees(values['overhang']):.1f}°<br>"
+            f"Point: {units.formatInternalValue(round(rise, 3))} above"
+        )
+        return
     bridge = units.formatInternalValue(2 * values["ratio"] * values["diameter"])
     overhang = sg.overhang_from_vertical_deg(values["ratio"])
-    # formattedText renders HTML; plain .text shows tags literally.
     info.formattedText = f"Overhang: {overhang:.1f}°<br>Bridge: {bridge}"
 
 
@@ -183,12 +242,17 @@ def _build(inputs, preview=False):
     centers = _center_points(sketch, inputs)
     if not centers:
         return False
-    # The first capdrop carries the driving dimensions; the rest follow it.
+    # The first shape carries the driving dimensions; the rest follow it.
     first = None
     for center in centers:
-        result = ss.build(
-            sketch, center, values["diameter"], values["ratio"], values["angle"], link_to=first
-        )
+        if values["shape"] == "teardrop":
+            result = ss.build_teardrop(
+                sketch, center, values["diameter"], values["overhang"], values["angle"], link_to=first
+            )
+        else:
+            result = ss.build(
+                sketch, center, values["diameter"], values["ratio"], values["angle"], link_to=first
+            )
         first = first or result
     if preview:
         _request_manipulator_update(sketch, centers[0])
@@ -222,6 +286,13 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             center.addSelectionFilter("Vertices")
             center.setSelectionLimits(1, 0)  # at least one, no upper limit
 
+            shape = inputs.addDropDownCommandInput(
+                "shape", "Shape", adsk.core.DropDownStyles.TextListDropDownStyle
+            )
+            for key, label in SHAPES.items():
+                shape.listItems.add(label, key == values["shape"])
+            shape.tooltip = "Capped has a flat top. Teardrop's side walls meet at a point."
+
             dia = inputs.addDistanceValueCommandInput(
                 "diameter", "Diameter", adsk.core.ValueInput.createByReal(values["diameter"])
             )
@@ -232,13 +303,24 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 "ratio", "Diameter Ratio", "", sg.RATIO_MIN, sg.RATIO_MAX, 0.01, values["ratio"]
             ).tooltip = "Half the flat's width, as a fraction of the diameter. 0.25 gives a flat half as wide as the circle."
 
+            inputs.addValueInput(
+                "overhang", "Overhang", "deg", adsk.core.ValueInput.createByReal(values["overhang"])
+            ).tooltip = (
+                "Side-wall angle from vertical, "
+                f"{sg.OVERHANG_MIN_DEG:g}° to {sg.OVERHANG_MAX_DEG:g}°. 45° prints without supports."
+            )
+            _show_shape_inputs(inputs)
+
             ang = inputs.addAngleValueCommandInput(
                 "angle", "Rotation", adsk.core.ValueInput.createByReal(values["angle"])
             )
-            ang.tooltip = "Rotation of the flat away from sketch +Y, counterclockwise."
+            ang.tooltip = "Rotation of the top away from sketch +Y, counterclockwise."
 
             info = inputs.addTextBoxCommandInput("info", "", "", 2, True)
-            info.tooltip = "Overhang is the side-wall angle from vertical. Bridge is the length of the flat top."
+            info.tooltip = (
+                "Overhang is the side-wall angle from vertical. Bridge is the length of "
+                "the flat top. Point is how far the teardrop's tip sits above the circle."
+            )
             _update_info(inputs)
 
             # Nothing is drawn until a centre is picked. The drag arrow and dial
@@ -256,7 +338,7 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
                 event.add(handler)
                 _handlers.append(handler)
         except Exception:
-            _ui.messageBox("Capdrop failed to start:\n" + traceback.format_exc())
+            _ui.messageBox("Printable Circle failed to start:\n" + traceback.format_exc())
 
 
 class ManipulatorEventHandler(adsk.core.CustomEventHandler):
@@ -269,7 +351,7 @@ class ManipulatorEventHandler(adsk.core.CustomEventHandler):
             if frame != _state.get("applied_frame"):
                 _apply_frame(inputs, frame)
         except Exception:
-            _app.log("Capdrop manipulator update failed:\n" + traceback.format_exc())
+            _app.log("Printable Circle manipulator update failed:\n" + traceback.format_exc())
 
 
 class ExecutePreviewHandler(adsk.core.CommandEventHandler):
@@ -280,7 +362,7 @@ class ExecutePreviewHandler(adsk.core.CommandEventHandler):
             event_args.isValidResult = _build(event_args.command.commandInputs, preview=True)
         except Exception:
             event_args.isValidResult = False
-            _app.log("Capdrop preview failed:\n" + traceback.format_exc())
+            _app.log("Printable Circle preview failed:\n" + traceback.format_exc())
 
 
 class ExecuteHandler(adsk.core.CommandEventHandler):
@@ -301,7 +383,10 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
         inputs = event_args.inputs
         try:
             changed = event_args.input.id
-            if changed in ("diameter", "ratio"):
+            if changed == "shape":
+                _show_shape_inputs(inputs)
+                _update_info(inputs)
+            elif changed in ("diameter", "ratio", "overhang"):
                 _update_info(inputs)
             elif changed == "center":
                 if inputs.itemById("center").selectionCount == 0:
@@ -324,7 +409,11 @@ class ValidateInputsHandler(adsk.core.ValidateInputsEventHandler):
         plane = inputs.itemById("plane")
         event_args.areInputsValid = (
             values["diameter"] > 0
-            and sg.RATIO_MIN - 1e-9 <= values["ratio"] <= sg.RATIO_MAX + 1e-9
+            and (
+                _overhang_ok(inputs, values)
+                if values["shape"] == "teardrop"
+                else sg.RATIO_MIN - 1e-9 <= values["ratio"] <= sg.RATIO_MAX + 1e-9
+            )
             and (plane is None or plane.selectionCount == 1)
         )
 
@@ -336,7 +425,9 @@ class DestroyHandler(adsk.core.CommandEventHandler):
             event_args.terminationReason == adsk.core.CommandTerminationReason.CompletedTerminationReason
             and "values" in _state
         ):
-            _save_settings(_state["values"])
+            values = dict(_state["values"])
+            values["angle"] = sg.wrap_turn(values["angle"])
+            _save_settings(values)
         _state.clear()
         # Drop the per-command handlers; keep the CommandCreated one (index 0).
         del _handlers[1:]
@@ -392,7 +483,7 @@ def run(context):
             controls.addCommand(cmd_def, after_id, False)
     except Exception:
         if _ui:
-            _ui.messageBox("Capdrop add-in failed to load:\n" + traceback.format_exc())
+            _ui.messageBox("Printable Circle add-in failed to load:\n" + traceback.format_exc())
 
 
 def stop(context):
@@ -402,4 +493,4 @@ def stop(context):
         _app.unregisterCustomEvent(MANIP_EVENT_ID)
     except Exception:
         if _ui:
-            _ui.messageBox("Capdrop add-in failed to unload:\n" + traceback.format_exc())
+            _ui.messageBox("Printable Circle add-in failed to unload:\n" + traceback.format_exc())
